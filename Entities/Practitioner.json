@@ -1,0 +1,90 @@
+{
+  "name": "Practitioner",
+  "type": "object",
+  "properties": {
+    "first_name": {
+      "type": "string",
+      "description": "Practitioner's first name"
+    },
+    "last_name": {
+      "type": "string",
+      "description": "Practitioner's last name"
+    },
+    "specialization": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "Abhyanga",
+          "Shirodhara",
+          "Udvartana",
+          "Nasya",
+          "Basti",
+          "Virechana",
+          "Vamana",
+          "Raktamokshana",
+          "Kizhi",
+          "Akshi Tarpana"
+        ]
+      },
+      "description": "Specialized therapies"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Contact phone number"
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "Email address"
+    },
+    "qualification": {
+      "type": "string",
+      "description": "Professional qualifications"
+    },
+    "experience_years": {
+      "type": "number",
+      "description": "Years of experience"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Active",
+        "Inactive"
+      ],
+      "default": "Active",
+      "description": "Employment status"
+    },
+    "working_hours": {
+      "type": "object",
+      "properties": {
+        "monday": {
+          "type": "string"
+        },
+        "tuesday": {
+          "type": "string"
+        },
+        "wednesday": {
+          "type": "string"
+        },
+        "thursday": {
+          "type": "string"
+        },
+        "friday": {
+          "type": "string"
+        },
+        "saturday": {
+          "type": "string"
+        },
+        "sunday": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "required": [
+    "first_name",
+    "last_name",
+    "phone"
+  ]
+}

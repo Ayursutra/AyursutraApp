@@ -1,0 +1,98 @@
+{
+  "name": "TreatmentPlan",
+  "type": "object",
+  "properties": {
+    "patient_id": {
+      "type": "string",
+      "description": "ID of the patient"
+    },
+    "plan_name": {
+      "type": "string",
+      "description": "Name of the treatment plan"
+    },
+    "description": {
+      "type": "string",
+      "description": "Treatment plan description"
+    },
+    "total_sessions": {
+      "type": "number",
+      "description": "Total number of sessions"
+    },
+    "completed_sessions": {
+      "type": "number",
+      "default": 0,
+      "description": "Sessions completed so far"
+    },
+    "therapies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "therapy_type": {
+            "type": "string",
+            "enum": [
+              "Abhyanga",
+              "Shirodhara",
+              "Udvartana",
+              "Nasya",
+              "Basti",
+              "Virechana",
+              "Vamana",
+              "Raktamokshana",
+              "Kizhi",
+              "Akshi Tarpana"
+            ]
+          },
+          "sessions": {
+            "type": "number"
+          },
+          "duration_minutes": {
+            "type": "number"
+          },
+          "frequency": {
+            "type": "string"
+          },
+          "special_instructions": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "List of therapies in the plan"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Plan start date"
+    },
+    "expected_end_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Expected completion date"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Active",
+        "Completed",
+        "Paused",
+        "Cancelled"
+      ],
+      "default": "Active",
+      "description": "Treatment plan status"
+    },
+    "total_cost": {
+      "type": "number",
+      "description": "Total cost of the treatment plan"
+    },
+    "assigned_practitioner_id": {
+      "type": "string",
+      "description": "Primary practitioner for this plan"
+    }
+  },
+  "required": [
+    "patient_id",
+    "plan_name",
+    "total_sessions",
+    "start_date"
+  ]
+}

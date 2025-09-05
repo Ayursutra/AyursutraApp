@@ -1,0 +1,102 @@
+{
+  "name": "Patient",
+  "type": "object",
+  "properties": {
+    "first_name": {
+      "type": "string",
+      "description": "Patient's first name"
+    },
+    "last_name": {
+      "type": "string",
+      "description": "Patient's last name"
+    },
+    "date_of_birth": {
+      "type": "string",
+      "format": "date",
+      "description": "Patient's date of birth"
+    },
+    "gender": {
+      "type": "string",
+      "enum": [
+        "Male",
+        "Female",
+        "Other"
+      ],
+      "description": "Patient's gender"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Contact phone number"
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "Email address"
+    },
+    "address": {
+      "type": "string",
+      "description": "Home address"
+    },
+    "prakriti": {
+      "type": "string",
+      "enum": [
+        "Vata",
+        "Pitta",
+        "Kapha",
+        "Vata-Pitta",
+        "Vata-Kapha",
+        "Pitta-Kapha",
+        "Tridosha"
+      ],
+      "description": "Constitutional type"
+    },
+    "vikriti": {
+      "type": "string",
+      "enum": [
+        "Vata",
+        "Pitta",
+        "Kapha",
+        "Vata-Pitta",
+        "Vata-Kapha",
+        "Pitta-Kapha",
+        "Tridosha"
+      ],
+      "description": "Current imbalance"
+    },
+    "medical_history": {
+      "type": "string",
+      "description": "Medical history and conditions"
+    },
+    "current_medications": {
+      "type": "string",
+      "description": "Current medications"
+    },
+    "allergies": {
+      "type": "string",
+      "description": "Known allergies"
+    },
+    "emergency_contact_name": {
+      "type": "string",
+      "description": "Emergency contact person"
+    },
+    "emergency_contact_phone": {
+      "type": "string",
+      "description": "Emergency contact phone"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Active",
+        "Inactive",
+        "Complete"
+      ],
+      "default": "Active",
+      "description": "Patient status"
+    }
+  },
+  "required": [
+    "first_name",
+    "last_name",
+    "phone"
+  ]
+}
