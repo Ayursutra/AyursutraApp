@@ -4,15 +4,14 @@ This project is a Django-based backend for the AyurSutra Panchakarma Patient Man
 
 ## Project Structure
 
-- `ayursutra_backend/`: The main Django project folder.
-- `ayursutra_backend/settings.py`: Main project settings, configured to use the `core` app and serve static files from the `frontend` directory.
-- `ayursutra_backend/urls.py`: Main URL router, which includes the `core` app's URLs.
+- `ayursutra/`: The main Django project folder.
+- `ayursutra/settings.py`: Main project settings, configured to use the `core` app and serve static files.
+- `ayursutra/urls.py`: Main URL router, which includes the `core` app's URLs.
 - `core/`: The primary Django application.
 - `core/urls.py`: URL patterns for the `core` app.
-- `core/views.py`: Views that render the frontend templates.
-- `frontend/`: All frontend assets (HTML, CSS, JS).
-- `frontend/templates/`: HTML files served by Django.
-- `frontend/static/`: CSS, JS, and image assets served as static files.
+- `core/views.py`: Views that render the main template.
+- `static/`: CSS, JS, and image assets served as static files.
+- `templates/`: HTML files served by Django.
 - `requirements.txt`: Python dependencies for the project.
 
 ## Getting Started

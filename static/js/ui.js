@@ -49,7 +49,7 @@ export const getPageTemplate = (pageName, state) => {
                                 </tr>
                             </thead>
                             <tbody id="patients-table-body">
-                                ${state.patients.length === 0 ? '<tr><td colspan="3" class="text-center py-8 text-brand-text-light">No patients found.</td></tr>' : 
+                                ${state.patients.length === 0 ? '<tr><td colspan="3" class="text-center py-8 text-brand-text-light">No patients found.</td></tr>' :
                                 state.patients.map(p => `
                                     <tr class="border-b border-brand-border">
                                         <td class="px-6 py-4 font-medium">${p.name}</td>
@@ -61,9 +61,11 @@ export const getPageTemplate = (pageName, state) => {
                     </div>
                 </div>
             </div>`,
-        // ... (Add other page templates here: schedule, plans, etc., following the same pattern)
-        // For brevity, I'll skip pasting all templates, but you can get them from your original file
-        // and add them here. Just make sure to change onclick="functionName(...)" to onclick="window.app.functionName(...)"
+        schedule: `<div class="p-6 md:p-8"><h1 class="text-3xl font-bold text-brand-green-dark">Schedule</h1><p class="text-center py-20 text-brand-text-light">Schedule page content goes here.</p></div>`,
+        plans: `<div class="p-6 md:p-8"><h1 class="text-3xl font-bold text-brand-green-dark">Treatment Plans</h1><p class="text-center py-20 text-brand-text-light">Treatment Plans page content goes here.</p></div>`,
+        practitioners: `<div class="p-6 md:p-8"><h1 class="text-3xl font-bold text-brand-green-dark">Practitioners</h1><p class="text-center py-20 text-brand-text-light">Practitioners page content goes here.</p></div>`,
+        notifications: `<div class="p-6 md:p-8"><h1 class="text-3xl font-bold text-brand-green-dark">Notifications</h1><p class="text-center py-20 text-brand-text-light">Notifications page content goes here.</p></div>`,
+        feedback: `<div class="p-6 md:p-8"><h1 class="text-3xl font-bold text-brand-green-dark">Feedback</h1><p class="text-center py-20 text-brand-text-light">Feedback page content goes here.</p></div>`,
     };
     return templates[pageName] || `<div>Page not found: ${pageName}</div>`;
 };
@@ -130,7 +132,7 @@ export function updateDashboard(state) {
     const todaysAppointments = state.appointments.filter(a => new Date(a.date).toDateString() === new Date().toDateString());
     document.getElementById('stat-appointments').textContent = todaysAppointments.length;
     document.getElementById('stat-plans').textContent = state.plans.length;
-    
+
     // ... rest of the dashboard update logic from your original file
 }
 
