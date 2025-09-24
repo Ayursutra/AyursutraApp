@@ -1,9 +1,13 @@
-from django.shortcuts import render
+from rest_framework import viewsets
+from .models import Patient
+from .serializers import PatientSerializer
 
-# Create your views here.
-def dashboard(request):
+class PatientViewSet(viewsets.ModelViewSet):
     """
-    This view just renders the main dashboard.html template.
-    All the dynamic content is handled by the frontend JavaScript.
+    API endpoint that allows patients to be viewed or edited.
+    This ViewSet automatically provides `list`, `create`, `retrieve`,
+    `update`, and `destroy` actions.
     """
-    return render(request, 'dashboard.html')
+    queryset = Patient.objects.all().order_by('-created_at')
+    serializer_class = PatientSerializer
+
