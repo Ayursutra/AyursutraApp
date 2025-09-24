@@ -13,7 +13,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY') # Make sure to replace this with your 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = ['AyursutraApp.onrender.com', '127.0.0.1']
+ALLOWED_HOSTS = ['Ayursutra.onrender.com', '127.0.0.1']
 
 # Application definition
 
