@@ -34,7 +34,7 @@ export async function fetchData(collectionName) {
         const data = await response.json();
         console.log(`Fetched ${data.results ? data.results.length : data.length} items for ${collectionName}`);
         
-        // Handle paginated responses
+        // Handle paginated responses from DRF
         return data.results || data;
     } catch (error) {
         console.error(`Error fetching ${collectionName}:`, error);
@@ -58,6 +58,7 @@ export async function addDocument(collectionName, data) {
         
         if (!response.ok) {
             const errorData = await response.json();
+            console.error('Server error:', errorData);
             throw new Error(`HTTP error! status: ${response.status}, message: ${JSON.stringify(errorData)}`);
         }
         
