@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AyurSutra - Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .bg-brand-green { background-color: #6E8B67; }
+        .bg-brand-green-light { background-color: #EAF0E9; }
+        .text-brand-green { color: #6E8B67; }
+        .text-brand-green-dark { color: #3A4D39; }
+        .border-brand-green { border-color: #6E8B67; }
+        .hover-brand-green:hover { background-color: #5A7359; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center">
+    <div class="max-w-md w-full space-y-8 p-8">
+        <!-- Logo and Title -->
+        <div class="text-center">
+            <div class="mx-auto h-20 w-20 bg-brand-green rounded-2xl flex items-center justify-center mb-4">
+                <span class="text-white font-bold text-3xl">A</span>
+            </div>
+            <h2 class="text-3xl font-bold text-brand-green-dark">Welcome to AyurSutra</h2>
+            <p class="mt-2 text-gray-600">Sign in to your account</p>
+        </div>
+
+        <!-- User Type Selection -->
+        <div class="bg-white p-6 rounded-2xl shadow-lg">
+            <h3 class="text-lg font-semibold text-center mb-4">Select User Type</h3>
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <button type="button" onclick="selectUserType('doctor')" 
+                        id="doctor-btn" class="user-type-btn p-4 border-2 border-gray-200 rounded-xl text-center hover:border-brand-green hover:bg-brand-green-light transition-colors">
+                    <div class="text-2xl mb-2">👨‍⚕️</div>
+                    <div class="font-semibold">Doctor</div>
+                </button>
+                <button type="button" onclick="selectUserType('patient')" 
+                        id="patient-btn" class="user-type-btn p-4 border-2 border-gray-200 rounded-xl text-center hover:border-brand-green hover:bg-brand-green-light transition-colors">
+                    <div class="text-2xl mb-2">🏥</div>
+                    <div class="font-semibold">Patient</div>
+                </button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="loginForm" class="space-y-4">
+                <input type="hidden" id="userType" name="user_type" value="">
+                
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Username or Email</label>
+                    <input type="text" id="username" name="username" required
+                           class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-transparent">
+                </div>
+
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input type="password" id="password" name="password" required
+                           class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-transparent">
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <label class="flex items-center">
+                        <input type="checkbox" class="rounded border-gray-300 text-brand-green focus:ring-brand-green">
+                        <span class="ml-2 text-sm text-gray-600">Remember me</span>
+                    </label>
+                    <a href="#" class="text-sm text-brand-green hover:underline">Forgot password?</a>
+                </div>
+
+                <button type="submit" 
+                        class="w-full bg-brand-green text-white py-3 px-4 rounded-lg font-semibold hover-brand-green transition-colors">
+                    Sign In
+                </button>
+            </form>
+
+            <div class="mt-6 text-center">
+                <p class="text-sm text-gray-600">
+                    Don't have an account? 
+                    <a href="/register/" class="text-brand-green font-semibold hover:underline">Sign up here</a>
+                </p>
+            </div>
+
+            <!-- Admin Login -->
+            <div class="mt-4 pt-4 border-t border-gray-200 text-center">
+                <button type="button" onclick="selectUserType('admin')" 
+                        class="text-sm text-gray-500 hover:text-brand-green">
+                    Admin Login
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-lg text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-green mx-auto mb-4"></div>
+            <p class="text-gray-700">Signing you in...</p>
+        </div>
+    </div>
+
+    <script>
+        let selectedUserType = '';
+
+        function selectUserType(type) {
+            selectedUserType = type;
+            document.getElementById('userType').value = type;
+            
+            // Update button styles
+            document.querySelectorAll('.user-type-btn').forEach(btn => {
+                btn.classList.remove('border-brand-green', 'bg-brand-green-light');
+                btn.classList.add('border-gray-200');
+            });
+            
+            const selectedBtn = document.getElementById(`${type}-btn`);
+            if (selectedBtn) {
+                selectedBtn.classList.remove('border-gray-200');
+                selectedBtn.classList.add('border-brand-green', 'bg-brand-green-light');
+            }
+        }
+
+        // Handle form submission
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!selectedUserType) {
+                showMessage('Please select a user type', 'error');
+                return;
+            }
+
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            loadingOverlay.classList.remove('hidden');
+
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+
+            try {
+                const response = await fetch('/api/auth/login/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    // Store token and user data
+                    localStorage.setItem('auth_token', result.token);
+                    localStorage.setItem('user_data', JSON.stringify(result.user));
+                    
+                    showMessage('Login successful! Redirecting...', 'success');
+                    
+                    // Redirect to appropriate dashboard
+                    setTimeout(() => {
+                        window.location.href = result.dashboard_url;
+                    }, 1000);
+                } else {
+                    showMessage(result.message || 'Login failed', 'error');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showMessage('An error occurred. Please try again.', 'error');
+            } finally {
+                loadingOverlay.classList.add('hidden');
+            }
+        });
+
+        function showMessage(message, type) {
+            // Create toast notification
+            const toast = document.createElement('div');
+            toast.className = `fixed top-4 right-4 p-4 rounded-lg text-white z-50 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
+            toast.textContent = message;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+</body>
+</html>

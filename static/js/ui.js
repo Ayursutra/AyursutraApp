@@ -1,583 +1,707 @@
-// --- UI Components & Templates ---
+// static/js/enhanced-ui.js
 
-// This function returns the HTML content for each page.
-export const getPageTemplate = (pageName, state) => {
-    const templates = {
-        dashboard: `
+class UIManager {
+    constructor() {
+        this.currentPage = 'dashboard';
+        this.state = {
+            patients: [],
+            practitioners: [],
+            appointments: [],
+            plans: [],
+            notifications: [],
+            feedback: [],
+            users: [],
+            dashboardStats: {}
+        };
+    }
+
+    async loadData(forceRefresh = false) {
+        if (!window.apiClient.isInitialized) return;
+
+        try {
+            // Load dashboard stats first
+            this.state.dashboardStats = await window.apiClient.getDashboardStats();
+            
+            // Load other data based on user type
+            const userType = window.USER_DATA.userType;
+            
+            if (userType === 'admin') {
+                await this.loadAllData();
+            } else if (userType === 'doctor') {
+                await this.loadDoctorData();
+            } else {
+                await this.loadPatientData();
+            }
+
+            this.updateSidebarStats();
+        } catch (error) {
+            console.error('Error loading data:', error);
+            window.notificationManager?.showToast('Error loading data', 'error');
+        }
+    }
+
+    async loadAllData() {
+        const [patients, practitioners, appointments, plans, notifications, feedback] = await Promise.all([
+            window.apiClient.getData('patients'),
+            window.apiClient.getData('practitioners'),
+            window.apiClient.getData('appointments'),
+            window.apiClient.getData('plans'),
+            window.apiClient.getData('notifications'),
+            window.apiClient.getData('feedback')
+        ]);
+
+        this.state = {
+            ...this.state,
+            patients,
+            practitioners,
+            appointments,
+            plans,
+            notifications,
+            feedback
+        };
+    }
+
+    async loadDoctorData() {
+        const [patients, appointments, plans, notifications, feedback] = await Promise.all([
+            window.apiClient.getData('patients'),
+            window.apiClient.getData('appointments'),
+            window.apiClient.getData('plans'),
+            window.apiClient.getData('notifications'),
+            window.apiClient.getData('feedback')
+        ]);
+
+        this.state = {
+            ...this.state,
+            patients,
+            appointments,
+            plans,
+            notifications,
+            feedback
+        };
+    }
+
+    async loadPatientData() {
+        const [appointments, plans, notifications, feedback] = await Promise.all([
+            window.apiClient.getData('appointments'),
+            window.apiClient.getData('plans'),
+            window.apiClient.getData('notifications'),
+            window.apiClient.getData('feedback')
+        ]);
+
+        this.state = {
+            ...this.state,
+            appointments,
+            plans,
+            notifications,
+            feedback
+        };
+    }
+
+    updateSidebarStats() {
+        const stats = this.state.dashboardStats;
+        
+        // Update overview stats in sidebar
+        const overviewAppointments = document.getElementById('overview-appointments');
+        const overviewPatients = document.getElementById('overview-patients');
+
+        if (overviewAppointments) {
+            overviewAppointments.textContent = stats.todays_appointments || 0;
+        }
+        
+        if (overviewPatients) {
+            if (window.USER_DATA.userType === 'admin') {
+                overviewPatients.textContent = stats.active_patients || 0;
+            } else if (window.USER_DATA.userType === 'doctor') {
+                overviewPatients.textContent = stats.my_patients || 0;
+            } else {
+                overviewPatients.textContent = stats.upcoming_appointments || 0;
+                // Change label for patients
+                const label = overviewPatients.parentElement?.querySelector('span');
+                if (label) label.textContent = 'Upcoming';
+            }
+        }
+    }
+
+    renderPage(pageName) {
+        this.currentPage = pageName;
+        const mainContent = document.getElementById('main-content');
+        if (!mainContent) return;
+
+        const template = this.getPageTemplate(pageName);
+        mainContent.innerHTML = template;
+
+        // Add event listeners for page-specific functionality
+        this.addPageEventListeners(pageName);
+    }
+
+    getPageTemplate(pageName) {
+        const userType = window.USER_DATA.userType;
+        const templates = this.getTemplatesForUserType(userType);
+        return templates[pageName] || this.getNotFoundTemplate(pageName);
+    }
+
+    getTemplatesForUserType(userType) {
+        if (userType === 'admin') {
+            return this.getAdminTemplates();
+        } else if (userType === 'doctor') {
+            return this.getDoctorTemplates();
+        } else {
+            return this.getPatientTemplates();
+        }
+    }
+
+    getAdminTemplates() {
+        return {
+            dashboard: this.getAdminDashboardTemplate(),
+            users: this.getUserManagementTemplate(),
+            patients: this.getPatientsTemplate(),
+            practitioners: this.getPractitionersTemplate(),
+            schedule: this.getScheduleTemplate(),
+            plans: this.getTreatmentPlansTemplate(),
+            notifications: this.getNotificationsTemplate(),
+            feedback: this.getFeedbackTemplate(),
+            settings: this.getSystemSettingsTemplate()
+        };
+    }
+
+    getDoctorTemplates() {
+        return {
+            dashboard: this.getDoctorDashboardTemplate(),
+            patients: this.getMyPatientsTemplate(),
+            schedule: this.getMyScheduleTemplate(),
+            plans: this.getMyTreatmentPlansTemplate(),
+            notifications: this.getMyNotificationsTemplate(),
+            feedback: this.getMyFeedbackTemplate(),
+            profile: this.getProfileTemplate()
+        };
+    }
+
+    getPatientsTemplate() {
+        return `
             <div class="p-6 md:p-8">
-                <header class="mb-8">
-                    <h1 class="text-3xl font-bold text-brand-green-dark">Welcome to AyurSutra</h1>
-                    <p class="text-brand-text-light mt-1">Panchakarma Patient Management Dashboard</p>
+                <header class="flex justify-between items-center mb-8">
+                    <div>
+                        <h1 class="text-3xl font-bold text-brand-green-dark">Patients Management</h1>
+                        <p class="text-brand-text-light mt-1">Manage patient records and information</p>
+                    </div>
+                    <button onclick="window.uiManager.showModal('addPatient')" class="bg-brand-green text-white px-4 py-2 rounded-lg font-semibold hover:bg-brand-green-dark transition-colors">
+                        <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        Add Patient
+                    </button>
                 </header>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div class="bg-white p-6 rounded-2xl shadow-sm">
-                        <p class="text-sm font-medium text-brand-text-light">Active Patients</p>
-                        <p id="stat-patients" class="text-3xl font-bold text-brand-green-dark mt-1">${state.patients.length}</p>
-                    </div>
-                    <div class="bg-white p-6 rounded-2xl shadow-sm">
-                        <p class="text-sm font-medium text-brand-text-light">Today's Appointments</p>
-                        <p id="stat-appointments" class="text-3xl font-bold text-brand-green-dark mt-1">${state.appointments.length}</p>
-                    </div>
-                    <div class="bg-white p-6 rounded-2xl shadow-sm">
-                        <p class="text-sm font-medium text-brand-text-light">Treatment Plans</p>
-                        <p id="stat-plans" class="text-3xl font-bold text-brand-green-dark mt-1">${state.plans.length}</p>
+
+                <!-- Search and Filters -->
+                <div class="bg-white p-4 rounded-xl shadow-sm mb-6">
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <div class="flex-1">
+                            <input type="text" id="patientSearch" placeholder="Search patients..." 
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-green">
+                        </div>
+                        <select id="statusFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-green">
+                            <option value="">All Statuses</option>
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                        <button onclick="window.uiManager.exportPatients()" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                            Export CSV
+                        </button>
                     </div>
                 </div>
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div class="lg:col-span-2 space-y-6">
-                        <div class="bg-white p-6 rounded-2xl shadow-sm">
-                            <h3 class="text-lg font-semibold text-brand-green-dark mb-4">Today's Schedule</h3>
-                            <div id="dashboard-schedule" class="space-y-3">
-                                ${state.appointments.length === 0 ? 
-                                    '<div class="text-center py-10 border-2 border-dashed border-brand-border rounded-lg"><p class="text-brand-text-light">No appointments scheduled for today</p></div>' :
-                                    state.appointments.slice(0, 5).map(apt => `
-                                        <div class="flex items-center justify-between p-3 bg-brand-bg rounded-lg">
-                                            <div class="flex items-center">
-                                                <div class="w-3 h-3 bg-brand-green rounded-full mr-3"></div>
-                                                <div>
-                                                    <p class="font-medium text-brand-text">${apt.patient_name || 'Patient'}</p>
-                                                    <p class="text-sm text-brand-text-light">${apt.appointment_type || 'Consultation'}</p>
+
+                <div class="bg-white rounded-2xl shadow-sm">
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prakriti</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200" id="patients-table-body">
+                                ${this.state.patients.length === 0 ? 
+                                    '<tr><td colspan="6" class="text-center py-8 text-gray-500">No patients found.</td></tr>' :
+                                    this.state.patients.map(patient => `
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-6 py-4">
+                                                <div class="flex items-center">
+                                                    <div class="h-10 w-10 rounded-full bg-brand-green flex items-center justify-center text-white font-semibold">
+                                                        ${patient.first_name ? patient.first_name.charAt(0).toUpperCase() : 'P'}
+                                                    </div>
+                                                    <div class="ml-4">
+                                                        <div class="text-sm font-medium text-gray-900">${patient.first_name} ${patient.last_name}</div>
+                                                        <div class="text-sm text-gray-500">ID: ${patient.id}</div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div class="text-right">
-                                                <p class="font-medium text-brand-text">${apt.appointment_time || '10:00 AM'}</p>
-                                                <p class="text-sm text-brand-text-light">${apt.practitioner_name || 'Dr. Practitioner'}</p>
-                                            </div>
-                                        </div>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <div class="text-sm text-gray-900">${patient.phone || 'N/A'}</div>
+                                                <div class="text-sm text-gray-500">${patient.email || 'No email'}</div>
+                                            </td>
+                                            <td class="px-6 py-4 text-sm text-gray-900">
+                                                ${patient.date_of_birth ? this.calculateAge(patient.date_of_birth) : 'N/A'}
+                                            </td>
+                                            <td class="px-6 py-4 text-sm text-gray-900">${patient.prakriti || 'Not assessed'}</td>
+                                            <td class="px-6 py-4">
+                                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${patient.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                                    ${patient.status || 'Active'}
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 text-sm font-medium">
+                                                <div class="flex space-x-2">
+                                                    <button onclick="window.uiManager.showModal('editPatient', ${patient.id})" class="text-indigo-600 hover:text-indigo-900">Edit</button>
+                                                    <button onclick="window.uiManager.showModal('viewPatient', ${patient.id})" class="text-green-600 hover:text-green-900">View</button>
+                                                    <button onclick="window.uiManager.confirmDelete('patients', ${patient.id})" class="text-red-600 hover:text-red-900">Delete</button>
+                                                </div>
+                                            </td>
+                                        </tr>
                                     `).join('')
                                 }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    getScheduleTemplate() {
+        const today = new Date().toISOString().split('T')[0];
+        const todaysAppointments = this.state.appointments.filter(apt => apt.appointment_date === today);
+
+        return `
+            <div class="p-6 md:p-8">
+                <header class="flex justify-between items-center mb-8">
+                    <div>
+                        <h1 class="text-3xl font-bold text-brand-green-dark">Appointments Schedule</h1>
+                        <p class="text-brand-text-light mt-1">Manage all appointments and scheduling</p>
+                    </div>
+                    <button onclick="window.uiManager.showModal('addAppointment')" class="bg-brand-green text-white px-4 py-2 rounded-lg font-semibold hover:bg-brand-green-dark transition-colors">
+                        <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        New Appointment
+                    </button>
+                </header>
+
+                <!-- Today's Appointments -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm mb-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Today's Appointments (${todaysAppointments.length})</h3>
+                    <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        ${todaysAppointments.length === 0 ? 
+                            '<div class="col-span-full text-center py-8 text-gray-500">No appointments today</div>' :
+                            todaysAppointments.map(apt => `
+                                <div class="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                                    <div class="flex items-start justify-between mb-2">
+                                        <div class="font-medium text-gray-900">${apt.patient_name || 'Patient'}</div>
+                                        <span class="px-2 py-1 text-xs rounded-full ${this.getStatusColor(apt.status)}">
+                                            ${apt.status || 'scheduled'}
+                                        </span>
+                                    </div>
+                                    <div class="text-sm text-gray-600 mb-2">
+                                        <div>⏰ ${apt.appointment_time || 'TBD'}</div>
+                                        <div>👨‍⚕️ ${apt.practitioner_name || 'Dr. Practitioner'}</div>
+                                        <div>📋 ${apt.appointment_type || 'Consultation'}</div>
+                                    </div>
+                                    <div class="flex space-x-2 text-xs">
+                                        <button onclick="window.uiManager.updateAppointmentStatus(${apt.id}, 'confirmed')" class="px-2 py-1 bg-green-100 text-green-800 rounded">Confirm</button>
+                                        <button onclick="window.uiManager.showModal('editAppointment', ${apt.id})" class="px-2 py-1 bg-blue-100 text-blue-800 rounded">Edit</button>
+                                    </div>
+                                </div>
+                            `).join('')
+                        }
+                    </div>
+                </div>
+
+                <!-- All Appointments Table -->
+                <div class="bg-white rounded-2xl shadow-sm">
+                    <div class="p-6 border-b border-gray-200">
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <input type="date" id="dateFilter" class="px-4 py-2 border border-gray-300 rounded-lg">
+                            <select id="statusFilterAppointment" class="px-4 py-2 border border-gray-300 rounded-lg">
+                                <option value="">All Statuses</option>
+                                <option value="scheduled">Scheduled</option>
+                                <option value="confirmed">Confirmed</option>
+                                <option value="completed">Completed</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                            <button onclick="window.uiManager.refreshAppointments()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                                Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Patient</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date & Time</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Practitioner</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                ${this.state.appointments.length === 0 ? 
+                                    '<tr><td colspan="6" class="text-center py-8 text-gray-500">No appointments found.</td></tr>' :
+                                    this.state.appointments.map(apt => `
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-6 py-4">
+                                                <div class="flex items-center">
+                                                    <div class="h-8 w-8 rounded-full bg-brand-green flex items-center justify-center text-white text-sm font-semibold">
+                                                        ${apt.patient_name ? apt.patient_name.charAt(0).toUpperCase() : 'P'}
+                                                    </div>
+                                                    <span class="ml-3 font-medium text-gray-900">${apt.patient_name || 'Patient'}</span>
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <div class="text-sm text-gray-900">${this.formatDate(apt.appointment_date)}</div>
+                                                <div class="text-sm text-gray-500">${apt.appointment_time || 'TBD'}</div>
+                                            </td>
+                                            <td class="px-6 py-4 text-sm text-gray-900">${apt.practitioner_name || 'Dr. Practitioner'}</td>
+                                            <td class="px-6 py-4 text-sm text-gray-900">${apt.appointment_type || 'Consultation'}</td>
+                                            <td class="px-6 py-4">
+                                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${this.getStatusColor(apt.status)}">
+                                                    ${apt.status || 'scheduled'}
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 text-sm font-medium">
+                                                <div class="flex space-x-2">
+                                                    <button onclick="window.uiManager.showModal('editAppointment', ${apt.id})" class="text-indigo-600 hover:text-indigo-900">Edit</button>
+                                                    <button onclick="window.uiManager.confirmDelete('appointments', ${apt.id})" class="text-red-600 hover:text-red-900">Cancel</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    `).join('')
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    getNotFoundTemplate(pageName) {
+        return `
+            <div class="p-6 md:p-8">
+                <div class="text-center py-16">
+                    <div class="mx-auto h-24 w-24 text-gray-400">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="mt-4 text-lg font-medium text-gray-900">Page Under Development</h3>
+                    <p class="mt-2 text-sm text-gray-500">The ${pageName} page is currently being developed.</p>
+                    <button onclick="window.uiManager.navigate('dashboard')" class="mt-4 px-4 py-2 bg-brand-green text-white rounded-lg hover:bg-brand-green-dark transition-colors">
+                        Back to Dashboard
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // Navigation and Event Handling
+    navigate(page) {
+        this.currentPage = page;
+        this.updateNavigation(page);
+        this.renderPage(page);
+    }
+
+    updateNavigation(currentPage) {
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.classList.remove('bg-brand-green', 'text-white', 'font-semibold');
+            link.classList.add('hover:bg-brand-green-light', 'text-brand-text', 'font-medium');
+            
+            if (link.dataset.page === currentPage) {
+                link.classList.add('bg-brand-green', 'text-white', 'font-semibold');
+                link.classList.remove('hover:bg-brand-green-light', 'text-brand-text', 'font-medium');
+            }
+        });
+    }
+
+    addPageEventListeners(pageName) {
+        // Add search functionality
+        const searchInput = document.getElementById(`${pageName}Search`);
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => this.handleSearch(e, pageName));
+        }
+
+        // Add filter functionality
+        const statusFilter = document.getElementById('statusFilter');
+        if (statusFilter) {
+            statusFilter.addEventListener('change', (e) => this.handleFilter(e, pageName));
+        }
+    }
+
+    handleSearch(event, pageName) {
+        const query = event.target.value.toLowerCase();
+        const tableBody = document.getElementById(`${pageName}-table-body`);
+        if (!tableBody) return;
+
+        const rows = tableBody.querySelectorAll('tr');
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(query) ? '' : 'none';
+        });
+    }
+
+    handleFilter(event, pageName) {
+        const filterValue = event.target.value;
+        const tableBody = document.getElementById(`${pageName}-table-body`);
+        if (!tableBody) return;
+
+        const rows = tableBody.querySelectorAll('tr');
+        rows.forEach(row => {
+            if (!filterValue) {
+                row.style.display = '';
+            } else {
+                const statusCell = row.querySelector('.inline-flex');
+                const status = statusCell ? statusCell.textContent.trim() : '';
+                row.style.display = status === filterValue ? '' : 'none';
+            }
+        });
+    }
+
+    // Utility Functions
+    formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        try {
+            return new Date(dateString).toLocaleDateString('en-IN', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        } catch (e) {
+            return dateString;
+        }
+    }
+
+    calculateAge(dateOfBirth) {
+        if (!dateOfBirth) return 'N/A';
+        const today = new Date();
+        const birthDate = new Date(dateOfBirth);
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        return age;
+    }
+
+    getStatusColor(status) {
+        const colors = {
+            'scheduled': 'bg-blue-100 text-blue-800',
+            'confirmed': 'bg-green-100 text-green-800',
+            'in_progress': 'bg-yellow-100 text-yellow-800',
+            'completed': 'bg-green-100 text-green-800',
+            'cancelled': 'bg-red-100 text-red-800',
+            'no_show': 'bg-gray-100 text-gray-800'
+        };
+        return colors[status] || 'bg-gray-100 text-gray-800';
+    }
+
+    // Modal and Action Methods (to be implemented)
+    showModal(modalName, ...args) {
+        console.log('Show modal:', modalName, args);
+        window.notificationManager?.showToast('Modal functionality coming soon!', 'info');
+    }
+
+    confirmDelete(collection, id) {
+        if (confirm('Are you sure you want to delete this item?')) {
+            this.deleteItem(collection, id);
+        }
+    }
+
+    async deleteItem(collection, id) {
+        try {
+            await window.apiClient.deleteDocument(collection, id);
+            window.notificationManager?.showToast('Item deleted successfully!', 'success');
+            await this.loadData(true); // Reload data
+            this.renderPage(this.currentPage); // Re-render current page
+        } catch (error) {
+            console.error('Delete error:', error);
+            window.notificationManager?.showToast('Error deleting item', 'error');
+        }
+    }
+
+    async updateAppointmentStatus(appointmentId, newStatus) {
+        try {
+            await window.apiClient.updateDocument('appointments', appointmentId, { status: newStatus });
+            window.notificationManager?.showToast(`Appointment ${newStatus} successfully!`, 'success');
+            await this.loadData(true);
+            this.renderPage(this.currentPage);
+        } catch (error) {
+            console.error('Update error:', error);
+            window.notificationManager?.showToast('Error updating appointment', 'error');
+        }
+    }
+}
+
+// Initialize UI Manager
+window.uiManager = new UIManager();entTemplates() {
+        return {
+            dashboard: this.getPatientDashboardTemplate(),
+            appointments: this.getMyAppointmentsTemplate(),
+            plans: this.getMyPlansTemplate(),
+            notifications: this.getMyNotificationsTemplate(),
+            feedback: this.getMyFeedbackTemplate(),
+            profile: this.getProfileTemplate(),
+            health: this.getHealthRecordsTemplate()
+        };
+    }
+
+    getAdminDashboardTemplate() {
+        const stats = this.state.dashboardStats;
+        return `
+            <div class="p-6 md:p-8">
+                <header class="mb-8">
+                    <h1 class="text-3xl font-bold text-brand-green-dark">System Dashboard</h1>
+                    <p class="text-brand-text-light mt-1">Complete system overview and management</p>
+                </header>
+
+                <!-- Key Metrics -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-blue-500">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Total Patients</p>
+                                <p class="text-3xl font-bold text-gray-900">${stats.total_patients || 0}</p>
+                            </div>
+                            <div class="p-3 bg-blue-100 rounded-full">
+                                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                </svg>
                             </div>
                         </div>
                     </div>
-                    <div class="lg:col-span-1">
+
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-green-500">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Active Doctors</p>
+                                <p class="text-3xl font-bold text-gray-900">${stats.total_doctors || 0}</p>
+                            </div>
+                            <div class="p-3 bg-green-100 rounded-full">
+                                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-yellow-500">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Today's Appointments</p>
+                                <p class="text-3xl font-bold text-gray-900">${stats.todays_appointments || 0}</p>
+                            </div>
+                            <div class="p-3 bg-yellow-100 rounded-full">
+                                <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-purple-500">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Active Plans</p>
+                                <p class="text-3xl font-bold text-gray-900">${stats.active_treatment_plans || 0}</p>
+                            </div>
+                            <div class="p-3 bg-purple-100 rounded-full">
+                                <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity and Quick Actions -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2">
                         <div class="bg-white p-6 rounded-2xl shadow-sm">
-                            <h3 class="text-lg font-semibold text-brand-green-dark mb-4">Quick Actions</h3>
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Appointments</h3>
                             <div class="space-y-3">
-                                <button onclick="window.app.showModal('addPatient')" class="w-full flex items-center text-left p-4 rounded-lg bg-brand-bg hover:bg-brand-green-light transition-colors">
-                                    <svg class="w-5 h-5 mr-3 text-brand-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                                    New Patient
+                                ${this.state.appointments.slice(0, 5).map(apt => `
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                        <div class="flex items-center">
+                                            <div class="w-10 h-10 bg-brand-green rounded-full flex items-center justify-center text-white font-semibold">
+                                                ${apt.patient_name ? apt.patient_name.charAt(0).toUpperCase() : 'P'}
+                                            </div>
+                                            <div class="ml-3">
+                                                <p class="font-medium text-gray-900">${apt.patient_name || 'Patient'}</p>
+                                                <p class="text-sm text-gray-500">${apt.appointment_type || 'Consultation'}</p>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <p class="font-medium text-gray-900">${this.formatDate(apt.appointment_date)} ${apt.appointment_time || ''}</p>
+                                            <p class="text-sm text-gray-500">${apt.practitioner_name || 'Dr. Practitioner'}</p>
+                                        </div>
+                                    </div>
+                                `).join('') || '<p class="text-center py-8 text-gray-500">No recent appointments</p>'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-1">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm mb-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+                            <div class="space-y-3">
+                                <button onclick="window.uiManager.showModal('addPatient')" class="w-full flex items-center text-left p-3 rounded-lg bg-brand-green-light hover:bg-brand-green hover:text-white transition-colors">
+                                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                    Add New Patient
                                 </button>
-                                <button onclick="window.app.showModal('addAppointment')" class="w-full flex items-center text-left p-4 rounded-lg bg-brand-bg hover:bg-brand-green-light transition-colors">
-                                    <svg class="w-5 h-5 mr-3 text-brand-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                <button onclick="window.uiManager.showModal('addPractitioner')" class="w-full flex items-center text-left p-3 rounded-lg bg-brand-green-light hover:bg-brand-green hover:text-white transition-colors">
+                                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                    </svg>
+                                    Add Doctor
+                                </button>
+                                <button onclick="window.uiManager.showModal('addAppointment')" class="w-full flex items-center text-left p-3 rounded-lg bg-brand-green-light hover:bg-brand-green hover:text-white transition-colors">
+                                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
                                     Schedule Appointment
                                 </button>
-                                <button onclick="window.app.showModal('addPlan')" class="w-full flex items-center text-left p-4 rounded-lg bg-brand-bg hover:bg-brand-green-light transition-colors">
-                                    <svg class="w-5 h-5 mr-3 text-brand-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                    Create Treatment Plan
-                                </button>
+                            </div>
+                        </div>
+
+                        <!-- System Status -->
+                        <div class="bg-white p-6 rounded-2xl shadow-sm">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">System Status</h3>
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-600">Database</span>
+                                    <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Connected</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-600">AI Assistant</span>
+                                    <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Active</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-600">Notifications</span>
+                                    <span class="px-2 py-1 bg-${stats.unread_notifications > 0 ? 'yellow' : 'green'}-100 text-${stats.unread_notifications > 0 ? 'yellow' : 'green'}-800 text-xs rounded-full">
+                                        ${stats.unread_notifications || 0} unread
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        `,
-        patients: `
-            <div class="p-6 md:p-8">
-                <header class="flex justify-between items-center mb-8">
-                    <h1 class="text-3xl font-bold text-brand-green-dark">Patients</h1>
-                    <button onclick="window.app.showModal('addPatient')" class="bg-brand-green text-white px-4 py-2 rounded-lg font-semibold hover:bg-brand-green-dark transition-colors">
-                        <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                        Add Patient
-                    </button>
-                </header>
-                <div class="bg-white p-6 rounded-2xl shadow-sm">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm text-left">
-                            <thead class="text-xs text-brand-text-light uppercase bg-brand-bg">
-                                <tr>
-                                    <th class="px-6 py-3 rounded-l-lg">Name</th>
-                                    <th class="px-6 py-3">Contact</th>
-                                    <th class="px-6 py-3">Prakriti</th>
-                                    <th class="px-6 py-3">Status</th>
-                                    <th class="px-6 py-3 rounded-r-lg">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="patients-table-body">
-                                ${state.patients.length === 0 ? 
-                                    '<tr><td colspan="5" class="text-center py-8 text-brand-text-light">No patients found.</td></tr>' :
-                                    state.patients.map(p => `
-                                        <tr class="border-b border-brand-border hover:bg-brand-bg">
-                                            <td class="px-6 py-4 font-medium">${p.first_name} ${p.last_name}</td>
-                                            <td class="px-6 py-4">
-                                                <div>
-                                                    <div>${p.phone}</div>
-                                                    <div class="text-xs text-brand-text-light">${p.email || 'No email'}</div>
-                                                </div>
-                                            </td>
-                                            <td class="px-6 py-4">${p.prakriti || 'Not assessed'}</td>
-                                            <td class="px-6 py-4">
-                                                <span class="px-2 py-1 rounded-full text-xs ${p.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">${p.status}</span>
-                                            </td>
-                                            <td class="px-6 py-4">
-                                                <button onclick="window.app.deleteDocument('patients', '${p.id}')" class="text-red-500 hover:text-red-700 text-sm">Delete</button>
-                                            </td>
-                                        </tr>`).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>`,
-        schedule: `
-            <div class="p-6 md:p-8">
-                <header class="flex justify-between items-center mb-8">
-                    <h1 class="text-3xl font-bold text-brand-green-dark">Schedule</h1>
-                    <button onclick="window.app.showModal('addAppointment')" class="bg-brand-green text-white px-4 py-2 rounded-lg font-semibold hover:bg-brand-green-dark transition-colors">
-                        <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                        Add Appointment
-                    </button>
-                </header>
-                <div class="bg-white p-6 rounded-2xl shadow-sm">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm text-left">
-                            <thead class="text-xs text-brand-text-light uppercase bg-brand-bg">
-                                <tr>
-                                    <th class="px-6 py-3 rounded-l-lg">Patient</th>
-                                    <th class="px-6 py-3">Date & Time</th>
-                                    <th class="px-6 py-3">Practitioner</th>
-                                    <th class="px-6 py-3">Type</th>
-                                    <th class="px-6 py-3">Status</th>
-                                    <th class="px-6 py-3 rounded-r-lg">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${state.appointments.length === 0 ? 
-                                    '<tr><td colspan="6" class="text-center py-8 text-brand-text-light">No appointments found.</td></tr>' :
-                                    state.appointments.map(apt => `
-                                        <tr class="border-b border-brand-border hover:bg-brand-bg">
-                                            <td class="px-6 py-4 font-medium">${apt.patient_name || 'Patient'}</td>
-                                            <td class="px-6 py-4">
-                                                <div>${apt.appointment_date || 'TBD'}</div>
-                                                <div class="text-xs text-brand-text-light">${apt.appointment_time || 'TBD'}</div>
-                                            </td>
-                                            <td class="px-6 py-4">${apt.practitioner_name || 'Dr. Practitioner'}</td>
-                                            <td class="px-6 py-4">${apt.appointment_type || 'Consultation'}</td>
-                                            <td class="px-6 py-4">
-                                                <span class="px-2 py-1 rounded-full text-xs ${getStatusColor(apt.status)}">${apt.status || 'scheduled'}</span>
-                                            </td>
-                                            <td class="px-6 py-4">
-                                                <button onclick="window.app.deleteDocument('appointments', '${apt.id}')" class="text-red-500 hover:text-red-700 text-sm">Cancel</button>
-                                            </td>
-                                        </tr>`).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>`,
-        plans: `
-            <div class="p-6 md:p-8">
-                <header class="flex justify-between items-center mb-8">
-                    <h1 class="text-3xl font-bold text-brand-green-dark">Treatment Plans</h1>
-                    <button onclick="window.app.showModal('addPlan')" class="bg-brand-green text-white px-4 py-2 rounded-lg font-semibold hover:bg-brand-green-dark transition-colors">
-                        <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                        Create Plan
-                    </button>
-                </header>
-                <div class="grid gap-6">
-                    ${state.plans.length === 0 ? 
-                        '<div class="bg-white p-8 rounded-2xl shadow-sm text-center"><p class="text-brand-text-light">No treatment plans found.</p></div>' :
-                        state.plans.map(plan => `
-                            <div class="bg-white p-6 rounded-2xl shadow-sm">
-                                <div class="flex justify-between items-start mb-4">
-                                    <div>
-                                        <h3 class="text-lg font-semibold text-brand-green-dark">${plan.title}</h3>
-                                        <p class="text-sm text-brand-text-light">${plan.patient_name || 'Patient'} • ${plan.practitioner_name || 'Dr. Practitioner'}</p>
-                                    </div>
-                                    <span class="px-3 py-1 rounded-full text-sm ${getPlanStatusColor(plan.status)}">${plan.status || 'draft'}</span>
-                                </div>
-                                <p class="text-brand-text mb-4">${plan.description || 'No description available'}</p>
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                    <div>
-                                        <p class="text-brand-text-light">Duration</p>
-                                        <p class="font-medium">${plan.start_date} - ${plan.end_date}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-brand-text-light">Progress</p>
-                                        <p class="font-medium">${plan.completed_sessions || 0}/${plan.total_sessions || 0} sessions</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-brand-text-light">Cost</p>
-                                        <p class="font-medium">₹${plan.total_cost || 0}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        `).join('')}
-                </div>
-            </div>`,
-        practitioners: `
-            <div class="p-6 md:p-8">
-                <h1 class="text-3xl font-bold text-brand-green-dark mb-8">Practitioners</h1>
-                <div class="grid gap-6">
-                    ${state.practitioners.length === 0 ? 
-                        '<div class="bg-white p-8 rounded-2xl shadow-sm text-center"><p class="text-brand-text-light">No practitioners found.</p></div>' :
-                        state.practitioners.map(prac => `
-                            <div class="bg-white p-6 rounded-2xl shadow-sm">
-                                <div class="flex items-start justify-between">
-                                    <div class="flex items-center">
-                                        <img class="h-16 w-16 rounded-full object-cover bg-brand-green-light" src="https://placehold.co/64x64/6E8B67/ffffff?text=Dr" alt="Dr. ${prac.first_name}">
-                                        <div class="ml-4">
-                                            <h3 class="text-lg font-semibold text-brand-green-dark">Dr. ${prac.first_name} ${prac.last_name}</h3>
-                                            <p class="text-brand-text">${prac.specialization}</p>
-                                            <p class="text-sm text-brand-text-light">${prac.qualification} • ${prac.experience_years} years exp.</p>
-                                        </div>
-                                    </div>
-                                    <span class="px-3 py-1 rounded-full text-sm ${prac.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">${prac.status}</span>
-                                </div>
-                                <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                    <div>
-                                        <p class="text-brand-text-light">Contact</p>
-                                        <p class="font-medium">${prac.phone}</p>
-                                        <p class="text-xs text-brand-text-light">${prac.email}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-brand-text-light">Consultation Fee</p>
-                                        <p class="font-medium">₹${prac.consultation_fee || 0}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-brand-text-light">Available</p>
-                                        <p class="font-medium">${prac.available_days || 'Mon-Sat'}</p>
-                                        <p class="text-xs text-brand-text-light">${prac.consultation_hours || '9 AM - 5 PM'}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        `).join('')}
-                </div>
-            </div>`,
-        notifications: `
-            <div class="p-6 md:p-8">
-                <h1 class="text-3xl font-bold text-brand-green-dark mb-8">Notifications</h1>
-                <div class="space-y-4">
-                    ${state.notifications.length === 0 ? 
-                        '<div class="bg-white p-8 rounded-2xl shadow-sm text-center"><p class="text-brand-text-light">No notifications found.</p></div>' :
-                        state.notifications.map(notif => `
-                            <div class="bg-white p-6 rounded-2xl shadow-sm ${notif.status === 'unread' ? 'border-l-4 border-brand-green' : ''}">
-                                <div class="flex justify-between items-start">
-                                    <div class="flex-1">
-                                        <h3 class="text-lg font-semibold text-brand-green-dark">${notif.title}</h3>
-                                        <p class="text-brand-text mt-1">${notif.message}</p>
-                                        <div class="flex items-center mt-2 text-sm text-brand-text-light">
-                                            <span class="px-2 py-1 rounded-full bg-brand-bg text-xs">${notif.notification_type}</span>
-                                            <span class="ml-2">${formatDate(notif.created_at)}</span>
-                                        </div>
-                                    </div>
-                                    <span class="px-2 py-1 rounded-full text-xs ${notif.status === 'unread' ? 'bg-brand-green text-white' : 'bg-gray-100 text-gray-800'}">${notif.status}</span>
-                                </div>
-                            </div>
-                        `).join('')}
-                </div>
-            </div>`,
-        feedback: `
-            <div class="p-6 md:p-8">
-                <h1 class="text-3xl font-bold text-brand-green-dark mb-8">Feedback</h1>
-                <div class="space-y-6">
-                    ${state.feedback.length === 0 ? 
-                        '<div class="bg-white p-8 rounded-2xl shadow-sm text-center"><p class="text-brand-text-light">No feedback found.</p></div>' :
-                        state.feedback.map(fb => `
-                            <div class="bg-white p-6 rounded-2xl shadow-sm">
-                                <div class="flex justify-between items-start mb-4">
-                                    <div>
-                                        <h3 class="text-lg font-semibold text-brand-green-dark">${fb.title}</h3>
-                                        <p class="text-sm text-brand-text-light">${fb.patient_name || 'Anonymous'} • ${fb.practitioner_name || 'Dr. Practitioner'}</p>
-                                    </div>
-                                    <div class="flex items-center">
-                                        ${generateStarRating(fb.rating || 0)}
-                                        <span class="ml-2 text-sm font-medium">${fb.rating || 0}/5</span>
-                                    </div>
-                                </div>
-                                <p class="text-brand-text mb-4">${fb.comment}</p>
-                                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                    <div>
-                                        <p class="text-brand-text-light">Treatment</p>
-                                        <p class="font-medium">${fb.treatment_effectiveness || 'N/A'}/5</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-brand-text-light">Care</p>
-                                        <p class="font-medium">${fb.practitioner_care || 'N/A'}/5</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-brand-text-light">Facility</p>
-                                        <p class="font-medium">${fb.facility_cleanliness || 'N/A'}/5</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-brand-text-light">Overall</p>
-                                        <p class="font-medium">${fb.overall_satisfaction || 'N/A'}/5</p>
-                                    </div>
-                                </div>
-                                ${fb.would_recommend ? '<div class="mt-3 text-sm text-green-600 font-medium">✓ Would recommend to others</div>' : ''}
-                            </div>
-                        `).join('')}
-                </div>
-            </div>`,
-    };
-    return templates[pageName] || `<div>Page not found: ${pageName}</div>`;
-};
-
-
-// This function returns the HTML for different modals
-export const getModalTemplate = (modalName, state, ...args) => {
-    const modals = {
-        addPatient: `
-            <div id="addPatient-modal" class="fixed inset-0 z-40 flex items-center justify-center modal-backdrop">
-                <div class="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md m-4">
-                    <h2 class="text-2xl font-bold text-brand-green-dark mb-6">Register New Patient</h2>
-                    <form id="addPatient-form" class="space-y-4">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label for="patient-first-name" class="block text-sm font-medium text-brand-text mb-1">First Name *</label>
-                                <input type="text" id="patient-first-name" required class="w-full px-3 py-2 border border-brand-border rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green">
-                            </div>
-                            <div>
-                                <label for="patient-last-name" class="block text-sm font-medium text-brand-text mb-1">Last Name *</label>
-                                <input type="text" id="patient-last-name" required class="w-full px-3 py-2 border border-brand-border rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green">
-                            </div>
-                        </div>
-                        <div>
-                            <label for="patient-phone" class="block text-sm font-medium text-brand-text mb-1">Phone Number *</label>
-                            <input type="tel" id="patient-phone" required class="w-full px-3 py-2 border border-brand-border rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green">
-                        </div>
-                        <div>
-                            <label for="patient-email" class="block text-sm font-medium text-brand-text mb-1">Email</label>
-                            <input type="email" id="patient-email" class="w-full px-3 py-2 border border-brand-border rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green">
-                        </div>
-                        <div>
-                            <label for="patient-dob" class="block text-sm font-medium text-brand-text mb-1">Date of Birth *</label>
-                            <input type="date" id="patient-dob" required class="w-full px-3 py-2 border border-brand-border rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green">
-                        </div>
-                        <div>
-                            <label for="patient-gender" class="block text-sm font-medium text-brand-text mb-1">Gender</label>
-                            <select id="patient-gender" class="w-full px-3 py-2 border border-brand-border rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green">
-                                <option value="">Select Gender</option>
-                                <option value="Male">Male</option>
-                                <option value="Female">Female</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                        <div class="flex justify-end gap-4 pt-4">
-                            <button type="button" onclick="window.app.closeModal()" class="px-4 py-2 rounded-lg text-brand-text hover:bg-gray-100">Cancel</button>
-                            <button type="submit" class="px-4 py-2 rounded-lg bg-brand-green text-white font-semibold hover:bg-brand-green-dark">Save Patient</button>
-                        </div>
-                    </form>
-                </div>
-            </div>`,
-        
-        addAppointment: `
-            <div id="addAppointment-modal" class="fixed inset-0 z-40 flex items-center justify-center modal-backdrop">
-                <div class="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md m-4">
-                    <h2 class="text-2xl font-bold text-brand-green-dark mb-6">Schedule Appointment</h2>
-                    <form id="addAppointment-form" class="space-y-4">
-                        <div>
-                            <label for="appointment-patient" class="block text-sm font-medium text-brand-text mb-1">Patient *</label>
-                            <select id="appointment-patient" required class="w-full px-3 py-2 border border-brand-border rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green">
-                                <option value="">Select Patient</option>
-                                ${state.patients.map(p => `<option value="${p.id}">${p.first_name} ${p.last_name}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div>
-                            <label for="appointment-practitioner" class="block text-sm font-medium text-brand-text mb-1">Practitioner *</label>
-                            <select id="appointment-practitioner" required class="w-full px-3 py-2 border border-brand-border rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green">
-                                <option value="">Select Practitioner</option>
-                                ${state.practitioners.map(p => `<option value="${p.id}">Dr. ${p.first_name} ${p.last_name}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label for="appointment-date" class="block text-sm font-medium text-brand-text mb-1">Date *</label>
-                                <input type="date" id="appointment-date" required class="w-full px-3 py-2 border border-brand-border rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green">
-                            </div>
-                            <div>
-                                <label for="appointment-time" class="block text-sm font-medium text-brand-text mb-1">Time *</label>
-                                <input type="time" id="appointment-time" required class="w-full px-3 py-2 border border-brand-border rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green">
-                            </div>
-                        </div>
-                        <div>
-                            <label for="appointment-type" class="block text-sm font-medium text-brand-text mb-1">Type *</label>
-                            <select id="appointment-type" required class="w-full px-3 py-2 border border-brand-border rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green">
-                                <option value="Consultation">Consultation</option>
-                                <option value="Treatment">Treatment</option>
-                                <option value="Follow-up">Follow-up</option>
-                                <option value="Check-up">Check-up</option>
-                            </select>
-                        </div>
-                        <div class="flex justify-end gap-4 pt-4">
-                            <button type="button" onclick="window.app.closeModal()" class="px-4 py-2 rounded-lg text-brand-text hover:bg-gray-100">Cancel</button>
-                            <button type="submit" class="px-4 py-2 rounded-lg bg-brand-green text-white font-semibold hover:bg-brand-green-dark">Schedule</button>
-                        </div>
-                    </form>
-                </div>
-            </div>`,
-        
-        addPlan: `
-            <div id="addPlan-modal" class="fixed inset-0 z-40 flex items-center justify-center modal-backdrop">
-                <div class="bg-white rounded-2xl shadow-lg p-8 w-full max-w-lg m-4 max-h-[90vh] overflow-y-auto">
-                    <h2 class="text-2xl font-bold text-brand-green-dark mb-6">Create Treatment Plan</h2>
-                    <form id="addPlan-form" class="space-y-4">
-                        <div>
-                            <label for="plan-patient" class="block text-sm font-medium text-brand-text mb-1">Patient *</label>
-                            <select id="plan-patient" required class="w-full px-3 py-2 border border-brand-border rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green">
-                                <option value="">Select Patient</option>
-                                ${state.patients.map(p => `<option value="${p.id}">${p.first_name} ${p.last_name}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div>
-                            <label for="plan-practitioner" class="block text-sm font-medium text-brand-text mb-1">Practitioner *</label>
-                            <select id="plan-practitioner" required class="w-full px-3 py-2 border border-brand-border rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green">
-                                <option value="">Select Practitioner</option>
-                                ${state.practitioners.map(p => `<option value="${p.id}">Dr. ${p.first_name} ${p.last_name}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div>
-                            <label for="plan-title" class="block text-sm font-medium text-brand-text mb-1">Plan Title *</label>
-                            <input type="text" id="plan-title" required class="w-full px-3 py-2 border border-brand-border rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green" placeholder="e.g., Panchakarma Detox Program">
-                        </div>
-                        <div>
-                            <label for="plan-description" class="block text-sm font-medium text-brand-text mb-1">Description</label>
-                            <textarea id="plan-description" rows="3" class="w-full px-3 py-2 border border-brand-border rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green" placeholder="Brief description of the treatment plan..."></textarea>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label for="plan-start-date" class="block text-sm font-medium text-brand-text mb-1">Start Date *</label>
-                                <input type="date" id="plan-start-date" required class="w-full px-3 py-2 border border-brand-border rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green">
-                            </div>
-                            <div>
-                                <label for="plan-end-date" class="block text-sm font-medium text-brand-text mb-1">End Date *</label>
-                                <input type="date" id="plan-end-date" required class="w-full px-3 py-2 border border-brand-border rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green">
-                            </div>
-                        </div>
-                        <div>
-                            <label for="plan-treatment-type" class="block text-sm font-medium text-brand-text mb-1">Treatment Type *</label>
-                            <select id="plan-treatment-type" required class="w-full px-3 py-2 border border-brand-border rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green">
-                                <option value="">Select Type</option>
-                                <option value="Panchakarma">Panchakarma</option>
-                                <option value="Rasayana Therapy">Rasayana Therapy</option>
-                                <option value="Satvavajaya Chikitsa">Satvavajaya Chikitsa</option>
-                                <option value="Shodhana">Shodhana</option>
-                                <option value="Shamana">Shamana</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                        <div class="flex justify-end gap-4 pt-4">
-                            <button type="button" onclick="window.app.closeModal()" class="px-4 py-2 rounded-lg text-brand-text hover:bg-gray-100">Cancel</button>
-                            <button type="submit" class="px-4 py-2 rounded-lg bg-brand-green text-white font-semibold hover:bg-brand-green-dark">Create Plan</button>
-                        </div>
-                    </form>
-                </div>
-            </div>`,
-        
-        confirmDelete: (coll, id) => `
-            <div id="confirmDelete-modal" class="fixed inset-0 z-40 flex items-center justify-center modal-backdrop">
-                <div class="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm m-4 text-center">
-                    <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                        </svg>
-                    </div>
-                    <h2 class="text-xl font-bold text-gray-800 mb-2">Confirm Deletion</h2>
-                    <p class="text-brand-text-light mb-6">Are you sure you want to delete this item? This action cannot be undone.</p>
-                    <div class="flex justify-center gap-4">
-                        <button type="button" onclick="window.app.closeModal()" class="px-6 py-2 rounded-lg text-brand-text bg-gray-100 hover:bg-gray-200">Cancel</button>
-                        <button type="button" onclick="window.app.executeDelete('${coll}', '${id}')" class="px-6 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700">Delete</button>
-                    </div>
-                </div>
-            </div>`
-    };
-    const templateFn = modals[modalName];
-    return typeof templateFn === 'function' ? templateFn(...args) : templateFn;
-};
-
-// --- Helper Functions ---
-function getStatusColor(status) {
-    const colors = {
-        'scheduled': 'bg-blue-100 text-blue-800',
-        'confirmed': 'bg-green-100 text-green-800',
-        'in_progress': 'bg-yellow-100 text-yellow-800',
-        'completed': 'bg-green-100 text-green-800',
-        'cancelled': 'bg-red-100 text-red-800',
-        'no_show': 'bg-gray-100 text-gray-800'
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
-}
-
-function getPlanStatusColor(status) {
-    const colors = {
-        'draft': 'bg-gray-100 text-gray-800',
-        'active': 'bg-green-100 text-green-800',
-        'completed': 'bg-blue-100 text-blue-800',
-        'cancelled': 'bg-red-100 text-red-800'
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
-}
-
-function generateStarRating(rating) {
-    const stars = [];
-    for (let i = 1; i <= 5; i++) {
-        if (i <= rating) {
-            stars.push('<svg class="w-4 h-4 text-yellow-400 fill-current" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>');
-        } else {
-            stars.push('<svg class="w-4 h-4 text-gray-300 fill-current" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>');
-        }
+        `;
     }
-    return `<div class="flex">${stars.join('')}</div>`;
-}
 
-function formatDate(dateString) {
-    if (!dateString) return 'N/A';
-    try {
-        return new Date(dateString).toLocaleDateString('en-IN', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    } catch (e) {
-        return dateString;
-    }
-}
-
-// --- DOM Manipulation Functions ---
-
-export function renderPage(pageName, state) {
-    const mainContent = document.getElementById('main-content');
-    if (mainContent) {
-        mainContent.innerHTML = getPageTemplate(pageName, state);
-    }
-}
-
-export function renderNav(currentPage) {
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.classList.remove('bg-brand-green', 'text-white', 'font-semibold');
-        link.classList.add('hover:bg-brand-green-light', 'text-brand-text', 'font-medium');
-        if (link.dataset.page === currentPage) {
-            link.classList.add('bg-brand-green', 'text-white', 'font-semibold');
-            link.classList.remove('hover:bg-brand-green-light', 'text-brand-text', 'font-medium');
-        }
-    });
-}
-
-export function showToast(message, type = 'success') {
-    const toastContainer = document.getElementById('toast-container');
-    if (!toastContainer) return;
-    
-    const bgColor = type === 'success' ? 'bg-brand-green' : 'bg-red-500';
-    const icon = type === 'success' ? 
-        '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>' :
-        '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
-    
-    const toast = document.createElement('div');
-    toast.className = `flex items-center p-4 rounded-lg text-white ${bgColor} shadow-lg transform transition-all duration-300 translate-y-2 opacity-0`;
-    toast.innerHTML = `${icon}<span>${message}</span>`;
-    
-    toastContainer.appendChild(toast);
-    
-    // Trigger animation
-    setTimeout(() => {
-        toast.classList.remove('translate-y-2', 'opacity-0');
-    }, 100);
-    
-    // Remove toast after 4 seconds
-    setTimeout(() => {
-        toast.classList.add('translate-y-2', 'opacity-0');
-        setTimeout(() => {
-            toast.remove();
-        }, 300);
-    }, 4000);
-}
+    getPati

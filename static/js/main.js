@@ -17,7 +17,12 @@ const state = {
 // --- DOM Elements ---
 const navLinksContainer = document.getElementById('nav-links');
 const modalContainer = document.getElementById('modal-container');
-
+const chatWindow = document.getElementById('chat-window-widget');
+const chatToggleBtn = document.getElementById('chat-toggle-btn');
+const closeChatBtn = document.getElementById('close-chat-btn');
+const chatMessagesContainer = document.getElementById('chat-messages-widget');
+const chatForm = document.getElementById('ai-chat-form-widget');
+const chatInput = document.getElementById('ai-chat-input-widget');
 // --- Navigation ---
 function navigate(page) {
     state.currentPage = page;
@@ -96,6 +101,48 @@ async function init() {
     // Handle initial page load from hash
     const initialPage = window.location.hash.substring(1) || 'dashboard';
     navigate(initialPage);
+}
+
+async function handleChatSubmit(e) {
+    e.preventDefault();
+    const userMessage = chatInput.value.trim();
+    if (!userMessage) return;
+
+    // Add user message to state and UI
+    state.chatHistory.push({ role: 'user', parts: [{ text: userMessage }] });
+    chatMessagesContainer.innerHTML += `<div class="mb-3 p-3 bg-brand-green-light rounded-lg text-right"><b>You:</b> ${userMessage}</div>`;
+    chatInput.value = '';
+    chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight; // Scroll to bottom
+
+    // Add a loading indicator
+    const loadingIndicator = document.createElement('div');
+    loadingIndicator.className = 'mb-3 p-3 bg-gray-200 rounded-lg animate-pulse';
+    loadingIndicator.textContent = 'Ayur AI is thinking...';
+    chatMessagesContainer.appendChild(loadingIndicator);
+    chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+
+    // Get AI response
+    const aiResponse = await api.getAIResponse(state.chatHistory);
+    state.chatHistory.push(aiResponse);
+
+    // Remove loading indicator and show AI response
+    loadingIndicator.remove();
+    chatMessagesContainer.innerHTML += `<div class="mb-3 p-3 bg-gray-100 rounded-lg"><b>Ayur AI:</b> ${aiResponse.parts[0].text}</div>`;
+    chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+}
+
+// --- App Initialization ---
+async function init() {
+    // ... (keep existing init code)
+
+    // Handle initial page load from hash
+    const initialPage = window.location.hash.substring(1) || 'dashboard';
+    navigate(initialPage);
+    
+    // Setup chat listeners
+    chatToggleBtn.addEventListener('click', () => chatWindow.classList.toggle('hidden'));
+    closeChatBtn.addEventListener('click', () => chatWindow.classList.add('hidden'));
+    chatForm.addEventListener('submit', handleChatSubmit);
 }
 
 // Start the application

@@ -12,6 +12,40 @@ from .serializers import (
     PatientSerializer, PractitionerSerializer, TreatmentPlanSerializer, 
     AppointmentSerializer, NotificationSerializer, FeedbackSerializer
 )
+import json
+import google.generativeai as genai
+from django.conf import settings
+
+# ... (keep existing ViewSet classes)
+
+# Configure the Gemini API client
+genai.configure(api_key=settings.GEMINI_API_KEY)
+model = genai.GenerativeModel('gemini-pro')
+chat = model.start_chat(history=[])
+
+@csrf_exempt
+def get_gemini_response(request):
+    """
+    Handles chat requests and gets a response from the Gemini API.
+    """
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            user_message = data.get("message")
+
+            if not user_message:
+                return JsonResponse({"error": "Message is required."}, status=400)
+
+            # Send the message to Gemini
+            response = chat.send_message(user_message)
+            
+            # Return the response text
+            return JsonResponse({"role": "model", "parts": [{"text": response.text}]})
+        
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    
+    return JsonResponse({"error": "Invalid request method."}, status=405)
 
 def dashboard(request):
     """
