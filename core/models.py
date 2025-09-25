@@ -1,33 +1,23 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings
 
 class Patient(models.Model):
-    """
-    Represents a patient in the system.
-    """
-    # Basic Information
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='patient_profile')
+    # ... (the rest of your Patient model fields)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     date_of_birth = models.DateField()
     gender = models.CharField(max_length=20, blank=True)
-    
-    # Contact Information
     phone = models.CharField(max_length=20, unique=True)
     email = models.EmailField(max_length=254, unique=True)
     address = models.TextField(blank=True)
-    
-    # Medical Information
     prakriti = models.CharField(max_length=100, blank=True)
     vikriti = models.CharField(max_length=100, blank=True)
     medical_history = models.TextField(blank=True)
     current_medications = models.TextField(blank=True)
     allergies = models.TextField(blank=True)
-    
-    # Emergency Contact
     emergency_contact_name = models.CharField(max_length=200, blank=True)
     emergency_contact_phone = models.CharField(max_length=20, blank=True)
-    
-    # Status and Timestamps
     status = models.CharField(max_length=50, default='Active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -40,28 +30,20 @@ class Patient(models.Model):
 
 
 class Practitioner(models.Model):
-    """
-    Represents a practitioner/doctor in the system.
-    """
-    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='practitioner_profile')
+    # ... (the rest of your Practitioner model fields)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     specialization = models.CharField(max_length=200)
     qualification = models.CharField(max_length=200)
     experience_years = models.IntegerField(default=0)
-    
-    # Contact Information
     phone = models.CharField(max_length=20, unique=True)
     email = models.EmailField(max_length=254, unique=True)
     address = models.TextField(blank=True)
-    
-    # Professional Information
     license_number = models.CharField(max_length=100, unique=True)
     consultation_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     available_days = models.CharField(max_length=100, default='Monday to Saturday')
     consultation_hours = models.CharField(max_length=100, default='9:00 AM - 5:00 PM')
-    
-    # Status and Timestamps
     status = models.CharField(max_length=50, default='Active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -72,7 +54,7 @@ class Practitioner(models.Model):
     class Meta:
         ordering = ['-created_at']
 
-
+# ... (rest of your models: TreatmentPlan, Appointment, Notification, Feedback)
 class TreatmentPlan(models.Model):
     """
     Represents a treatment plan for a patient.
@@ -83,34 +65,25 @@ class TreatmentPlan(models.Model):
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
     ]
-    
+
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='treatment_plans')
     practitioner = models.ForeignKey(Practitioner, on_delete=models.CASCADE, related_name='treatment_plans')
-    
+
     title = models.CharField(max_length=200)
     description = models.TextField()
-    
-    # Treatment Details
     primary_diagnosis = models.CharField(max_length=200)
     secondary_diagnosis = models.CharField(max_length=200, blank=True)
-    treatment_type = models.CharField(max_length=100)  # e.g., Panchakarma, Rejuvenation, etc.
-    
-    # Duration
+    treatment_type = models.CharField(max_length=100)
     start_date = models.DateField()
     end_date = models.DateField()
     total_sessions = models.IntegerField(default=1)
     completed_sessions = models.IntegerField(default=0)
-    
-    # Medications and Instructions
     medications = models.TextField(blank=True)
     dietary_instructions = models.TextField(blank=True)
     lifestyle_recommendations = models.TextField(blank=True)
     follow_up_instructions = models.TextField(blank=True)
-    
-    # Cost Information
     total_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    
     status = models.CharField(max_length=20, choices=PLAN_STATUS_CHOICES, default='draft')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -138,20 +111,16 @@ class Appointment(models.Model):
         ('cancelled', 'Cancelled'),
         ('no_show', 'No Show'),
     ]
-    
+
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='appointments')
     practitioner = models.ForeignKey(Practitioner, on_delete=models.CASCADE, related_name='appointments')
     treatment_plan = models.ForeignKey(TreatmentPlan, on_delete=models.SET_NULL, null=True, blank=True, related_name='appointments')
-    
     appointment_date = models.DateField()
     appointment_time = models.TimeField()
     duration_minutes = models.IntegerField(default=60)
-    
-    # Appointment Details
     appointment_type = models.CharField(max_length=100, default='Consultation')
     chief_complaint = models.TextField(blank=True)
     notes = models.TextField(blank=True)
-    
     status = models.CharField(max_length=20, choices=APPOINTMENT_STATUS_CHOICES, default='scheduled')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -174,29 +143,23 @@ class Notification(models.Model):
         ('general', 'General'),
         ('system', 'System'),
     ]
-    
+
     NOTIFICATION_STATUS = [
         ('unread', 'Unread'),
         ('read', 'Read'),
         ('archived', 'Archived'),
     ]
-    
+
     title = models.CharField(max_length=200)
     message = models.TextField()
     notification_type = models.CharField(max_length=50, choices=NOTIFICATION_TYPES, default='general')
-    
-    # Recipients (can be for specific patient or practitioner)
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, null=True, blank=True, related_name='notifications')
     practitioner = models.ForeignKey(Practitioner, on_delete=models.CASCADE, null=True, blank=True, related_name='notifications')
-    
-    # Related objects
     appointment = models.ForeignKey(Appointment, on_delete=models.CASCADE, null=True, blank=True, related_name='notifications')
     treatment_plan = models.ForeignKey(TreatmentPlan, on_delete=models.CASCADE, null=True, blank=True, related_name='notifications')
-    
     status = models.CharField(max_length=20, choices=NOTIFICATION_STATUS, default='unread')
-    scheduled_for = models.DateTimeField(null=True, blank=True)  # For scheduled notifications
+    scheduled_for = models.DateTimeField(null=True, blank=True)
     sent_at = models.DateTimeField(null=True, blank=True)
-    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -218,29 +181,22 @@ class Feedback(models.Model):
         (4, '4 Stars'),
         (5, '5 Stars'),
     ]
-    
+
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='feedback')
     practitioner = models.ForeignKey(Practitioner, on_delete=models.CASCADE, related_name='feedback')
     treatment_plan = models.ForeignKey(TreatmentPlan, on_delete=models.CASCADE, null=True, blank=True, related_name='feedback')
     appointment = models.ForeignKey(Appointment, on_delete=models.CASCADE, null=True, blank=True, related_name='feedback')
-    
     rating = models.IntegerField(choices=RATING_CHOICES)
     title = models.CharField(max_length=200)
     comment = models.TextField()
-    
-    # Specific ratings
     treatment_effectiveness = models.IntegerField(choices=RATING_CHOICES, null=True, blank=True)
     practitioner_care = models.IntegerField(choices=RATING_CHOICES, null=True, blank=True)
     facility_cleanliness = models.IntegerField(choices=RATING_CHOICES, null=True, blank=True)
     overall_satisfaction = models.IntegerField(choices=RATING_CHOICES, null=True, blank=True)
-    
-    # Recommendations
     would_recommend = models.BooleanField(default=True)
     suggestions = models.TextField(blank=True)
-    
     is_anonymous = models.BooleanField(default=False)
     is_public = models.BooleanField(default=False)
-    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
