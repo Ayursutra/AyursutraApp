@@ -14,7 +14,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
-            raise serializers.ValidationError("Passwords don't match.")
+            raise serializers.ValidationError({"password": "Passwords don't match."})
         return attrs
 
     def create(self, validated_data):
@@ -28,43 +28,19 @@ class UserLoginSerializer(serializers.Serializer):
     user_type = serializers.ChoiceField(choices=CustomUser.USER_TYPE_CHOICES, required=False)
 
     def validate(self, attrs):
-        username = attrs.get('username')
-        password = attrs.get('password')
-        user_type = attrs.get('user_type')
-
-        if username and password:
-            user = authenticate(username=username, password=password)
-            
-            if user:
-                if not user.is_active:
-                    raise serializers.ValidationError('User account is disabled.')
-                
-                if user_type and user.user_type != user_type:
-                    raise serializers.ValidationError('Invalid user type.')
-                
-                attrs['user'] = user
-                return attrs
-            else:
-                raise serializers.ValidationError('Invalid username or password.')
-        else:
-            raise serializers.ValidationError('Must include username and password.')
+        user = authenticate(username=attrs.get('username'), password=attrs.get('password'))
+        if not user or not user.is_active:
+            raise serializers.ValidationError('Invalid credentials.')
+        attrs['user'] = user
+        return attrs
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'user_type',
-                 'phone', 'date_of_birth', 'address', 'is_verified', 'date_joined')
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'user_type', 'phone', 'date_of_birth', 'address')
         read_only_fields = ('id', 'date_joined')
 
 class UserProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ('first_name', 'last_name', 'email', 'phone', 'date_of_birth', 
-                 'address', 'profile_picture', 'specialization', 'license_number', 'emergency_contact')
-        
-    def update(self, instance, validated_data):
-        # Only allow users to update their own profile
-        for field, value in validated_data.items():
-            setattr(instance, field, value)
-        instance.save()
-        return instance
+        fields = ('first_name', 'last_name', 'email', 'phone', 'date_of_birth', 'address', 'specialization', 'license_number')

@@ -1,9 +1,18 @@
 from django.db import models
 from django.conf import settings
 
+class Practitioner(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, primary_key=True)
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    specialization = models.CharField(max_length=200)
+    # ... other fields
+
+    def __str__(self):
+        return f"Dr. {self.first_name} {self.last_name}"
+
+# ... (The rest of the models: TreatmentPlan, Appointment, Notification, Feedback remain the same)
 class Patient(models.Model):
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='patient_profile')
-    # ... (the rest of your Patient model fields)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     date_of_birth = models.DateField()
@@ -11,6 +20,7 @@ class Patient(models.Model):
     phone = models.CharField(max_length=20, unique=True)
     email = models.EmailField(max_length=254, unique=True)
     address = models.TextField(blank=True)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='patient_profile')
     prakriti = models.CharField(max_length=100, blank=True)
     vikriti = models.CharField(max_length=100, blank=True)
     medical_history = models.TextField(blank=True)
@@ -31,7 +41,6 @@ class Patient(models.Model):
 
 class Practitioner(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='practitioner_profile')
-    # ... (the rest of your Practitioner model fields)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     specialization = models.CharField(max_length=200)
@@ -54,11 +63,7 @@ class Practitioner(models.Model):
     class Meta:
         ordering = ['-created_at']
 
-# ... (rest of your models: TreatmentPlan, Appointment, Notification, Feedback)
 class TreatmentPlan(models.Model):
-    """
-    Represents a treatment plan for a patient.
-    """
     PLAN_STATUS_CHOICES = [
         ('draft', 'Draft'),
         ('active', 'Active'),
@@ -100,9 +105,6 @@ class TreatmentPlan(models.Model):
 
 
 class Appointment(models.Model):
-    """
-    Represents an appointment between a patient and practitioner.
-    """
     APPOINTMENT_STATUS_CHOICES = [
         ('scheduled', 'Scheduled'),
         ('confirmed', 'Confirmed'),
@@ -133,9 +135,6 @@ class Appointment(models.Model):
 
 
 class Notification(models.Model):
-    """
-    Represents notifications for users.
-    """
     NOTIFICATION_TYPES = [
         ('appointment_reminder', 'Appointment Reminder'),
         ('treatment_update', 'Treatment Update'),
@@ -171,9 +170,6 @@ class Notification(models.Model):
 
 
 class Feedback(models.Model):
-    """
-    Represents feedback from patients about their treatment.
-    """
     RATING_CHOICES = [
         (1, '1 Star'),
         (2, '2 Stars'),

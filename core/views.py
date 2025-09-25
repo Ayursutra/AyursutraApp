@@ -1,18 +1,33 @@
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
 from rest_framework import viewsets, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.conf import settings
 import google.generativeai as genai
+
 from .models import Patient, Practitioner, TreatmentPlan, Appointment, Notification, Feedback
 from .serializers import (
     PatientSerializer, PractitionerSerializer, TreatmentPlanSerializer,
     AppointmentSerializer, NotificationSerializer, FeedbackSerializer
 )
 
-# Configure the Gemini API client
-genai.configure(api_key=settings.GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-pro')
-chat = model.start_chat(history=[])
+# --- Template Views (Dashboards) ---
+
+@login_required
+def admin_dashboard(request):
+    return render(request, 'dashboards/admin_dashboard.html', {'page_title': 'Admin Dashboard'})
+
+@login_required
+def doctor_dashboard(request):
+    return render(request, 'dashboards/doctor_dashboard.html', {'page_title': 'Doctor Dashboard'})
+
+@login_required
+def patient_dashboard(request):
+    return render(request, 'dashboards/patient_dashboard.html', {'page_title': 'Patient Dashboard'})
+
+
+# --- API Views (ViewSets) ---
 
 class PatientViewSet(viewsets.ModelViewSet):
     serializer_class = PatientSerializer
@@ -85,12 +100,17 @@ class FeedbackViewSet(viewsets.ModelViewSet):
             return Feedback.objects.filter(patient__user=user)
 
 class ChatBotAPIView(APIView):
+    """ AI Chatbot API endpoint """
+    permission_classes = [permissions.IsAuthenticated]
+
     def post(self, request):
         user_message = request.data.get("message")
         if not user_message:
             return Response({"error": "Message is required."}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            response = chat.send_message(user_message)
-            return Response({"role": "model", "parts": [{"text": response.text}]})
+            genai.configure(api_key=settings.GEMINI_API_KEY)
+            model = genai.GenerativeModel('gemini-pro')
+            response = model.generate_content(user_message)
+            return Response({"text": response.text})
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
