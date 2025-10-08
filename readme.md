@@ -176,12 +176,11 @@
 
 ### Team Members
 
-| S.No | Name | Role | Responsibilities | Email | LinkedIn |
-|------|------|------|------------------|-------|----------|
-| 1 | [Govind Jindal] | **Team Lead & PPT Maker** | - Django architecture<br>- Database design<br>- REST API development<br>- Team coordination<br>- Deployment planning | member1@email.com | [LinkedIn](https://linkedin.com/in/member1) |
-| 2 | [Member Name 2] | **Frontend Developer** | - UI/UX implementation<br>- HTML/CSS/JavaScript<br>- Tailwind CSS styling<br>- Responsive design<br>- Component development | member2@email.com | [LinkedIn](https://linkedin.com/in/member2) |
-| 3 | [Member Name 3] | **AI/ML Engineer** | - Gemini AI integration<br>- Chatbot development<br>- NLP implementation<br>- AI prompt engineering<br>- Model optimization | member3@email.com | [LinkedIn](https://linkedin.com/in/member3) |
-| 4 | [Member Name 4] | **UI/UX Designer** | - Interface design<br>- User flow mapping<br>- Wire
+| S.No | Name | Email | LinkedIn |
+|------|------|-------|----------|
+| 1 | Piyush Sharma | piyush3183.beai25@chitkara.edu.in | [LinkedIn](https://www.linkedin.com/in/piyushcodes7) |
+| 2 | Govind Jindal | govind3091.beai25@chitkara.edu.in | [LinkedIn](https://www.linkedin.com/in/govind-jindal-62925b361) |
+| 3 | Bhavishya Grover | bhavishya3095.beai25@chitkara.edu.in | [LinkedIn](https://www.linkedin.com/in/bhavishya-grover-39051b382)|
 
 **Code Status:**
 ```python
